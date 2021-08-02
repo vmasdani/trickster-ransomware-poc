@@ -1,0 +1,1 @@
+/home/valian/go/src/trickster-ransomware-poc/toencrypt-clone/testing/newdir2/newdirtext1.txt

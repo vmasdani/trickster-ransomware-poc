@@ -16,6 +16,10 @@ xgo --targets=linux/amd64 .
 ```
 
 ### Running
+1. Copy `toencrypt-clone` contents to `toencrypt`
+
+2. Run
+
 ```sh
 ./trickster-ransomware-poc
 

