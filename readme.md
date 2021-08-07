@@ -27,3 +27,10 @@ xgo --targets=linux/amd64 .
 
 ./trickster-ransomware-poc-linux-amd64
 ```
+
+### Decryption
+Add `--decrypt` flag when running the program. Enter the password which can be found inside the source code in the variable `KeyStr`.
+
+```sh
+./trickster-ransomware-poc --decrypt
+```
